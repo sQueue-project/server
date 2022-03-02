@@ -1,0 +1,26 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tobias de Bruijn <t.debruijn@array21.dev>"]
+
+[dependencies]
+actix-web = "4.0.1"
+actix-protobuf = "0.7.0"
+thiserror = "1.0.30"
+envy = "0.4.2"
+
+# Tracing
+tracing = "0.1.31"
+tracing-subscriber = "0.3.9"
+tracing-actix-web = "0.5.1"
+
+[dependencies.proto]
+path = "../proto"
+
+[dependencies.dal]
+path = "../dal"
+
+[dependencies.serde]
+version = "1.0.136"
+features = ["derive"]

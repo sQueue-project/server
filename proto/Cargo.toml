@@ -1,0 +1,12 @@
+[package]
+name = "proto"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tobias de Bruijn <t.debruijn@array21.dev>"]
+
+
+[dependencies]
+prost = "0.9.0"
+
+[build-dependencies]
+prost-build = "0.9.0"

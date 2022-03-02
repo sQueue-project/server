@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package squeue.items;
+
+message CreateRoomRequest {
+  string username = 1;
+  string roomname = 2;
+}
+
+message CreatedResponse {
+  string uuid = 1;
+}

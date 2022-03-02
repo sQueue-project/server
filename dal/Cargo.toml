@@ -1,0 +1,31 @@
+[package]
+name = "dal"
+version = "0.1.0"
+edition = "2021"
+authors = ["Tobias de Bruijn <t.debruijn@array21.dev"]
+
+[dependencies]
+tracing = "0.1.31"
+thiserror = "1.0.30"
+
+[dependencies.mysql]
+version = "22.1.0"
+default-features = false
+
+[dependencies.mysql_common]
+version = "0.28.2"
+features = ["uuid"]
+
+[dependencies.refinery]
+version = "0.8.4"
+default-features = false
+features = ["mysql"]
+
+[dependencies.uuid]
+version = "0.8.2"
+default-features = false
+features = ["v4", "serde"]
+
+[dependencies.serde]
+version = "1.0.136"
+features = ["derive"]
