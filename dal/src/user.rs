@@ -1,26 +1,21 @@
 use mysql::prelude::Queryable;
 use mysql::{params, TxOpts};
 use mysql_common::row::Row;
-use uuid::Uuid;
-use crate::{Dal, DalResult, Datastore, Mysql};
-use serde::{Serialize, Deserialize};
+use crate::{Uuid, Dal, DalResult, Datastore, Mysql};
 
-#[derive(Serialize, Deserialize)]
 pub struct User<T: Datastore> {
-    #[serde(skip)]
     dal: T,
     pub uuid: Uuid,
     pub name: String,
 }
 
-#[derive(Serialize, Deserialize)]
 pub struct UserBuildable {
     pub name: String,
 }
 
 impl Dal<Mysql, UserBuildable> for User<Mysql> {
-    fn get(data: Mysql, uuid: Uuid) -> DalResult<Option<Self>> {
-        let mut tx = data.start_transaction(TxOpts::default())?;
+    fn get(dal: Mysql, uuid: Uuid) -> DalResult<Option<Self>> {
+        let mut tx = dal.start_transaction(TxOpts::default())?;
         let row: Row = match tx.exec_first("SELECT name FROM users WHERE uuid = :uuid", params! {
             "uuid" => &uuid
         })? {
@@ -30,7 +25,7 @@ impl Dal<Mysql, UserBuildable> for User<Mysql> {
         tx.commit()?;
 
         Ok(Some(Self {
-            dal: data,
+            dal,
             uuid,
             name: row.get("name").unwrap(),
         }))
@@ -56,8 +51,8 @@ impl Dal<Mysql, UserBuildable> for User<Mysql> {
         Ok(())
     }
 
-    fn create(data: Mysql, buildable: UserBuildable) -> DalResult<Self> {
-        let mut tx = data.start_transaction(TxOpts::default())?;
+    fn create(dal: Mysql, buildable: UserBuildable) -> DalResult<Self> {
+        let mut tx = dal.start_transaction(TxOpts::default())?;
         let uuid = Uuid::new_v4();
 
         tx.exec_drop("INSERT INTO users (uuid, name) VALUES (:uuid, :name)", params! {
@@ -66,7 +61,7 @@ impl Dal<Mysql, UserBuildable> for User<Mysql> {
         })?;
         tx.commit()?;
         Ok(Self {
-            dal: data,
+            dal,
             uuid,
             name: buildable.name
         })

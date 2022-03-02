@@ -7,13 +7,15 @@ authors = ["Tobias de Bruijn <t.debruijn@array21.dev"]
 [dependencies]
 tracing = "0.1.31"
 thiserror = "1.0.30"
+rand = "0.8.5"
+time = "0.3.7"
 
 [dependencies.mysql]
-version = "22.1.0"
+version = "=22.0.0"
 default-features = false
 
 [dependencies.mysql_common]
-version = "0.28.2"
+version = "=0.28.0"
 features = ["uuid"]
 
 [dependencies.refinery]
@@ -25,7 +27,3 @@ features = ["mysql"]
 version = "0.8.2"
 default-features = false
 features = ["v4", "serde"]
-
-[dependencies.serde]
-version = "1.0.136"
-features = ["derive"]

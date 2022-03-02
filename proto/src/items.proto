@@ -3,10 +3,30 @@ syntax = "proto3";
 package squeue.items;
 
 message CreateRoomRequest {
-  string username = 1;
-  string roomname = 2;
+  string user_name = 1;
+  string room_name = 2;
 }
 
-message CreatedResponse {
-  string uuid = 1;
+message RoomCreatedResponse {
+  string room_uuid = 1;
+  string owner_uuid = 2;
+  string join_code = 3;
+}
+
+message RoomInfoResponse {
+  string room_uuid = 1;
+  string owner_uuid = 2;
+  string join_code = 3;
+  string room_name = 4;
+  string owner_name = 5;
+}
+
+message RoomJoinRequest {
+  string user_name = 1;
+  string room_join_code = 2;
+}
+
+message RoomJoinResponse {
+  string user_uuid = 1;
+  string room_uuid = 2;
 }

@@ -21,6 +21,10 @@ path = "../proto"
 [dependencies.dal]
 path = "../dal"
 
+[dependencies.prost]
+version = "0.9.0"
+default-features = false
+
 [dependencies.serde]
 version = "1.0.136"
 features = ["derive"]

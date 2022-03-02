@@ -1,0 +1,20 @@
+CREATE TABLE users (
+    id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    uuid BLOB NOT NULL,
+    name VARCHAR(64) NOT NULL
+);
+
+CREATE TABLE rooms (
+    id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    uuid BLOB NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    owner BLOB NULL,
+    join_code VARCHAR(6) NOT NULL
+);
+
+CREATE TABLE room_members (
+    id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    room_uuid BLOB NOT NULL,
+    user_uuid BLOB NOT NULL,
+    joined_at BIGINT NOT NULL
+)
