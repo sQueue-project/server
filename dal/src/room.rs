@@ -3,12 +3,25 @@ use mysql::TxOpts;
 use mysql_common::params;
 use mysql_common::row::Row;
 use rand::Rng;
-use crate::{Uuid, Dal, DalResult, Datastore, Mysql};
+use crate::{uuid::Uuid, Dal, DalResult, Datastore, Mysql};
+
+pub struct Member {
+    pub uuid: Uuid,
+    pub joined_at: i64,
+}
+
+pub enum RemoveStatus {
+    Ok {
+        new_owner: Uuid,
+    },
+    LastMember
+}
 
 pub trait RoomExt<T: Datastore, U>: Dal<T, U> {
     fn get_by_join_code<S: AsRef<str>>(dal: T, code: S) -> DalResult<Option<Self>>;
     fn add_user(&mut self, user: &Uuid) -> DalResult<()>;
-    fn remove_user(&mut self, user: &Uuid) -> DalResult<()>;
+    fn remove_user(&mut self, user: &Uuid) -> DalResult<RemoveStatus>;
+    fn list_members(&self) -> DalResult<Vec<Member>>;
 }
 
 pub struct Room<T: Datastore> {
@@ -118,12 +131,50 @@ impl RoomExt<Mysql, RoomBuildable> for Room<Mysql> {
         Ok(())
     }
 
-    fn remove_user(&mut self, user: &Uuid) -> DalResult<()> {
-        let mut conn = self.dal.get_conn()?;
-        conn.exec_drop("DELETE FROM room_members WHERE room_uuid = :room_uuid AND user_uuid = :user_uuid", params! {
+    fn remove_user(&mut self, user: &Uuid) -> DalResult<RemoveStatus> {
+        let mut tx = self.dal.start_transaction(TxOpts::default())?;
+
+        tx.exec_drop("DELETE FROM room_members WHERE room_uuid = :room_uuid AND user_uuid = :user_uuid", params! {
             "room_uuid" => &self.uuid,
             "user_uuid" => user
         })?;
-        Ok(())
+
+        // Select a new owner
+        let mut remaining = self.list_members()?
+            .into_iter()
+            .filter(|x| x.uuid.ne(user))
+            .collect::<Vec<_>>();
+        remaining.sort_by(|a, b| a.joined_at.cmp(&b.joined_at));
+        let remove_status = if let Some(first) = remaining.first() {
+            tx.exec_drop("UPDATE rooms SET owner = :owner WHERE uuid = :uuid", params! {
+                "owner" => first.uuid,
+                "uuid" => self.uuid
+            })?;
+
+            RemoveStatus::Ok {
+                new_owner: first.uuid
+            }
+        } else {
+            RemoveStatus::LastMember
+        };
+
+        tx.commit()?;
+
+        Ok(remove_status)
+    }
+
+    fn list_members(&self) -> DalResult<Vec<Member>> {
+        let mut conn = self.dal.get_conn()?;
+        let rows: Vec<Row> = conn.exec("SELECT user_uuid,joined_at FROM room_members WHERE room_uuid = :room_uuid", params! {
+            "room_uuid" => &self.uuid
+        })?;
+
+        let members = rows.into_iter()
+            .map(|x| Member {
+                uuid: x.get("user_uuid").unwrap(),
+                joined_at: x.get("joined_at").unwrap(),
+            })
+            .collect::<Vec<_>>();
+        Ok(members)
     }
 }

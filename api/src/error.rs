@@ -17,6 +17,8 @@ pub enum Error {
     NotFound(&'static str),
     #[error("Bad request: {0}")]
     BadRequest(&'static str),
+    #[error("UUID error: {0}")]
+    Uuid(#[from] dal::uuid::Error),
 }
 
 impl ResponseError for Error {
@@ -30,7 +32,7 @@ impl ResponseError for Error {
             },
             Self::Conflict(_) => StatusCode::CONFLICT,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
-            Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+            Self::BadRequest(_) | Self::Uuid(_) => StatusCode::BAD_REQUEST,
         }
     }
 

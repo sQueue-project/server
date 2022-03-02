@@ -30,3 +30,24 @@ message RoomJoinResponse {
   string user_uuid = 1;
   string room_uuid = 2;
 }
+
+message RoomLeaveRequest {
+  string room_uuid = 1;
+  string user_uuid = 2;
+}
+
+message RoomLeaveResponse {
+  bool deleted = 1;
+  optional string new_owner = 2;
+}
+
+message RoomMember {
+  string uuid = 1;
+  bool owner = 2;
+  int64 joined_at = 3;
+  string name = 4;
+}
+
+message RoomMemberResponse {
+  repeated RoomMember members = 1;
+}

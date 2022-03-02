@@ -83,6 +83,7 @@ enum ContentType {
 }
 
 impl ContentType {
+    #[inline]
     fn from_request(req: &HttpRequest) -> Self {
         match req.content_type() {
             "application/json" => Self::Json,

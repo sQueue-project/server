@@ -1,10 +1,12 @@
 use actix_web::web;
 use crate::appdata::WebData;
-use dal::{Room, Uuid, Dal, User};
+use dal::{Room, uuid::Uuid, Dal, User};
 use proto::RoomInfoResponse;
 use crate::error::{Error, WebResult};
 use crate::services::TypedResponse;
+use tracing::instrument;
 
+#[instrument]
 pub async fn get(data: WebData, path: web::Path<Uuid>) -> WebResult<TypedResponse<RoomInfoResponse>> {
     let room = match Room::get(data.dal.clone(), path.into_inner())? {
         Some(x) => x,

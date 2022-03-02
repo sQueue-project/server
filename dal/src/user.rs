@@ -1,7 +1,7 @@
 use mysql::prelude::Queryable;
 use mysql::{params, TxOpts};
 use mysql_common::row::Row;
-use crate::{Uuid, Dal, DalResult, Datastore, Mysql};
+use crate::{uuid::Uuid, Dal, DalResult, Datastore, Mysql};
 
 pub struct User<T: Datastore> {
     dal: T,

@@ -31,7 +31,9 @@ async fn main() -> std::io::Result<()> {
         .service(web::scope("/api/v1")
             .route("/room/create", web::post().to(services::room::create::create))
             .route("/room/get/{uuid}", web::get().to(services::room::get::get))
-            .route("/room/join", web::post().to(services::room::join::join))))
+            .route("/room/join", web::post().to(services::room::join::join))
+            .route("/room/leave", web::post().to(services::room::leave::leave))
+            .route("/room/members", web::get().to(services::room::members::members))))
         .bind("[::]:8080")?
         .run();
 
