@@ -17,11 +17,22 @@ pub enum RemoveStatus {
     LastMember
 }
 
+pub struct Track {
+    pub uuid: Uuid,
+    pub name: String,
+    pub artist: String,
+    pub duration: i64,
+    pub position: i64,
+    pub thumbnail_url: String,
+    pub youtube_id: String,
+}
+
 pub trait RoomExt<T: Datastore, U>: Dal<T, U> {
     fn get_by_join_code<S: AsRef<str>>(dal: T, code: S) -> DalResult<Option<Self>>;
     fn add_user(&mut self, user: &Uuid) -> DalResult<()>;
     fn remove_user(&mut self, user: &Uuid) -> DalResult<RemoveStatus>;
     fn list_members(&self) -> DalResult<Vec<Member>>;
+    fn list_tracks(&self) -> DalResult<Vec<Track>>;
 }
 
 pub struct Room<T: Datastore> {
@@ -176,5 +187,25 @@ impl RoomExt<Mysql, RoomBuildable> for Room<Mysql> {
             })
             .collect::<Vec<_>>();
         Ok(members)
+    }
+
+    fn list_tracks(&self) -> DalResult<Vec<Track>> {
+        let mut conn = self.dal.get_conn()?;
+        let rows: Vec<Row> = conn.exec("SELECT track_uuid,youtube_id,track_name,artist_name,track_duration,queue_position,thumbnail_url WHERE room_uuid = :room_uuid", params! {
+            "youtube_id" => &self.uuid
+        })?;
+
+        let tracks = rows.into_iter()
+            .map(|x| Track {
+                uuid: x.get("track_uuid").unwrap(),
+                name: x.get("track_name").unwrap(),
+                artist: x.get("artist_name").unwrap(),
+                youtube_id: x.get("youtube_id").unwrap(),
+                duration: x.get("track_duration").unwrap(),
+                position: x.get("queue_position").unwrap(),
+                thumbnail_url: x.get("thumbnail_url").unwrap(),
+            })
+            .collect::<Vec<_>>();
+        Ok(tracks)
     }
 }

@@ -1,13 +1,16 @@
 syntax = "proto3";
 
+// Naming scheme for the top level request/response type:
+// <Entity><Action><Response/Request>
+
 package squeue.items;
 
-message CreateRoomRequest {
+message RoomCreateRequest {
   string user_name = 1;
   string room_name = 2;
 }
 
-message RoomCreatedResponse {
+message RoomCreateResponse {
   string room_uuid = 1;
   string owner_uuid = 2;
   string join_code = 3;
@@ -50,4 +53,17 @@ message RoomMember {
 
 message RoomMemberResponse {
   repeated RoomMember members = 1;
+}
+
+message Track {
+  string track_uuid = 1;
+  string artistName = 2;
+  string trackName = 3;
+  int64 trackDuration = 4;
+  int64 trackPosition = 5;
+  string thumbnail_url = 6;
+}
+
+message TrackListResponse {
+  repeated Track tracks = 1;
 }

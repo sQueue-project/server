@@ -1,12 +1,12 @@
 use dal::{Dal, Room, RoomBuildable, RoomExt, User, UserBuildable};
-use proto::{CreateRoomRequest, RoomCreatedResponse};
+use proto::{RoomCreateResponse, RoomCreateRequest};
 use crate::appdata::WebData;
 use crate::error::{Error, WebResult};
-use crate::services::{Payload, TypedResponse};
+use crate::services::payload::Payload;
 use tracing::instrument;
 
 #[instrument]
-pub async fn create(data: WebData, payload: Payload<CreateRoomRequest>) -> WebResult<TypedResponse<RoomCreatedResponse>> {
+pub async fn create(data: WebData, payload: Payload<RoomCreateRequest>) -> WebResult<Payload<RoomCreateResponse>> {
     if payload.user_name.len() > 64 {
         return Err(Error::BadRequest("User name may not be longer than 64 characters"));
     }
@@ -25,7 +25,7 @@ pub async fn create(data: WebData, payload: Payload<CreateRoomRequest>) -> WebRe
     })?;
     room.add_user(&user.uuid)?;
 
-    Ok(TypedResponse(RoomCreatedResponse {
+    Ok(Payload(RoomCreateResponse {
         room_uuid: room.uuid.to_string(),
         owner_uuid: user.uuid.to_string(),
         join_code: room.join_code

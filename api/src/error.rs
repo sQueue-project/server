@@ -19,6 +19,8 @@ pub enum Error {
     BadRequest(&'static str),
     #[error("UUID error: {0}")]
     Uuid(#[from] dal::uuid::Error),
+    #[error("Sse: {0}")]
+    Sse(#[from] crate::services::sse::SseError),
 }
 
 impl ResponseError for Error {
@@ -30,6 +32,7 @@ impl ResponseError for Error {
                     DalError::Refinery(_) => unreachable!(),
                 }
             },
+            Self::Sse(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Conflict(_) => StatusCode::CONFLICT,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::BadRequest(_) | Self::Uuid(_) => StatusCode::BAD_REQUEST,

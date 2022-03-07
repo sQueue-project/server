@@ -33,8 +33,41 @@ impl ResponseError for PayloadError {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+enum ContentType {
+    Json,
+    Protobuf,
+    Other,
+}
+
+impl ContentType {
+    #[inline]
+    fn from_request_content_type(req: &HttpRequest) -> Self {
+        match req.content_type() {
+            "application/json" => Self::Json,
+            "application/protobuf" => Self::Protobuf,
+            _ => Self::Other,
+        }
+    }
+
+    #[inline]
+    fn from_request_accepts(req: &HttpRequest) -> Self {
+        if let Some(accepts) = req.headers().get("Accepts") {
+            if let Ok(accepts) = accepts.to_str() {
+                return match accepts {
+                    "application/json" => ContentType::Json,
+                    "application/protobuf" => ContentType::Protobuf,
+                    _ => ContentType::Other
+                }
+            }
+        }
+
+        ContentType::Other
+    }
+}
+
 #[derive(Debug)]
-pub struct Payload<T: 'static + DeserializeOwned + Message + Default + Clone>(T);
+pub struct Payload<T: 'static + DeserializeOwned + Message + Default + Clone>(pub T);
 
 impl<T: 'static + DeserializeOwned + Message + Default + Clone> Deref for Payload<T> {
     type Target = T;
@@ -53,7 +86,7 @@ impl<T: 'static + DeserializeOwned + Message + Default + Clone> FromRequest for 
         let mut payload = payload.take();
 
         Box::pin(async move {
-            let data = match ContentType::from_request(&req) {
+            let data = match ContentType::from_request_content_type(&req) {
                 ContentType::Json => {
                     trace!("Received JSON payload, deserializing");
                     let json: web::Json<T> = web::Json::from_request(&req, &mut payload).await?;
@@ -75,47 +108,23 @@ impl<T: 'static + DeserializeOwned + Message + Default + Clone> FromRequest for 
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum ContentType {
-    Json,
-    Protobuf,
-    Other,
-}
-
-impl ContentType {
-    #[inline]
-    fn from_request(req: &HttpRequest) -> Self {
-        match req.content_type() {
-            "application/json" => Self::Json,
-            "application/protobuf" => Self::Protobuf,
-            _ => Self::Other,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct TypedResponse<T: Serialize + Message + Default + Debug>(pub T);
-
-impl<T: Serialize + Message + Default> Responder for TypedResponse<T> {
+impl<T: Serialize + Message + Default + Clone + DeserializeOwned> Responder for Payload<T> {
     type Body = BoxBody;
 
     fn respond_to(self, req: &HttpRequest) -> HttpResponse<Self::Body> {
-        let content_type = if let Some(accepts) = req.headers().get("Accepts") {
-            if let Ok(accepts) = accepts.to_str() {
-                match accepts {
-                    "application/json" => ContentType::Json,
-                    "application/protobuf" => ContentType::Protobuf,
-                    _ => ContentType::from_request(req)
-                }
-            } else {
-                ContentType::from_request(req)
-            }
-        } else {
-            ContentType::from_request(req)
-        };
 
+        // Determine the response format
+        // - Check if the Accepts header was set to a valid value, use that
+        // - If not, check the Content-Type header, if that is valid, use that
+        // - Else, default to Json
+        let content_type = ContentType::from_request_accepts(req);
         let content_type = if content_type.eq(&ContentType::Other) {
-            ContentType::Json
+            let content_type_second = ContentType::from_request_content_type(req);
+            if content_type_second.eq(&ContentType::Other) {
+                ContentType::Json
+            } else {
+                content_type_second
+            }
         } else {
             content_type
         };

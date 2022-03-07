@@ -8,7 +8,7 @@ CREATE TABLE rooms (
     id INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     uuid BLOB NOT NULL,
     name VARCHAR(64) NOT NULL,
-    owner BLOB NULL,
+    owner BLOB NOT NULL,
     join_code VARCHAR(6) NOT NULL
 );
 

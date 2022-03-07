@@ -4,11 +4,11 @@ use dal::uuid::Uuid;
 use proto::{RoomMember, RoomMemberResponse};
 use crate::appdata::WebData;
 use crate::error::{Error, WebResult};
-use crate::services::payload::TypedResponse;
+use crate::services::payload::Payload;
 use tracing::instrument;
 
 #[instrument]
-pub async fn members(data: WebData, path: web::Path<Uuid>) -> WebResult<TypedResponse<RoomMemberResponse>> {
+pub async fn members(data: WebData, path: web::Path<Uuid>) -> WebResult<Payload<RoomMemberResponse>> {
     let room = match Room::get(data.dal.clone(), path.into_inner())? {
         Some(x) => x,
         None => return Err(Error::NotFound("The requested room does not exist"))
@@ -27,7 +27,8 @@ pub async fn members(data: WebData, path: web::Path<Uuid>) -> WebResult<TypedRes
             })
         })
         .collect::<Result<Vec<_>, Error>>()?;
-    Ok(TypedResponse(RoomMemberResponse {
+
+    Ok(Payload(RoomMemberResponse {
         members
     }))
 }

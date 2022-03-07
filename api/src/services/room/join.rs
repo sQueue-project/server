@@ -2,11 +2,11 @@ use dal::{Room, RoomExt, Dal, User, UserBuildable};
 use proto::{RoomJoinRequest, RoomJoinResponse};
 use crate::appdata::WebData;
 use crate::error::{Error, WebResult};
-use crate::services::{Payload, TypedResponse};
+use crate::services::payload::Payload;
 use tracing::instrument;
 
 #[instrument]
-pub async fn join(data: WebData, payload: Payload<RoomJoinRequest>) -> WebResult<TypedResponse<RoomJoinResponse>> {
+pub async fn join(data: WebData, payload: Payload<RoomJoinRequest>) -> WebResult<Payload<RoomJoinResponse>> {
     if payload.user_name.len() > 64 {
         return Err(Error::BadRequest("User name may not be longer than 64 characters"));
     }
@@ -21,7 +21,7 @@ pub async fn join(data: WebData, payload: Payload<RoomJoinRequest>) -> WebResult
     })?;
     room.add_user(&user.uuid)?;
 
-    Ok(TypedResponse(RoomJoinResponse {
+    Ok(Payload(RoomJoinResponse {
         room_uuid: room.uuid.to_string(),
         user_uuid: user.uuid.to_string(),
     }))

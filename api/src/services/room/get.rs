@@ -3,11 +3,11 @@ use crate::appdata::WebData;
 use dal::{Room, uuid::Uuid, Dal, User};
 use proto::RoomInfoResponse;
 use crate::error::{Error, WebResult};
-use crate::services::TypedResponse;
+use crate::services::payload::Payload;
 use tracing::instrument;
 
 #[instrument]
-pub async fn get(data: WebData, path: web::Path<Uuid>) -> WebResult<TypedResponse<RoomInfoResponse>> {
+pub async fn get(data: WebData, path: web::Path<Uuid>) -> WebResult<Payload<RoomInfoResponse>> {
     let room = match Room::get(data.dal.clone(), path.into_inner())? {
         Some(x) => x,
         None => return Err(Error::NotFound("The requested room does not exist"))
@@ -18,7 +18,7 @@ pub async fn get(data: WebData, path: web::Path<Uuid>) -> WebResult<TypedRespons
         None => return Err(Error::Conflict("The room's owner does not exist".to_string()))
     };
 
-    Ok(TypedResponse(RoomInfoResponse {
+    Ok(Payload(RoomInfoResponse {
         room_uuid: room.uuid.to_string(),
         owner_uuid: room.owner.to_string(),
         join_code: room.join_code.to_string(),
