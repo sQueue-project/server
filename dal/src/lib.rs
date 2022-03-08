@@ -1,10 +1,16 @@
 mod user;
 mod room;
 mod mysql_dal;
+mod pretrack;
+mod track;
+mod queue;
 
 pub use user::*;
 pub use room::*;
 pub use mysql_dal::*;
+pub use pretrack::*;
+pub use track::*;
+pub use queue::*;
 
 pub mod uuid {
     pub use ::uuid::Uuid;
@@ -19,6 +25,8 @@ pub enum Error {
     Mysql(#[from] mysql::Error),
     #[error("Refinery error: {0}")]
     Refinery(#[from] refinery::Error),
+    #[error("{0}")]
+    Other(String),
 }
 
 pub type DalResult<T> = Result<T, Error>;

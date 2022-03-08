@@ -12,10 +12,11 @@ use tokio_stream::Stream;
 use serde::Serialize;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
-use tracing::warn;
+use tracing::{trace, warn};
 use crate::services::payload::ContentType;
 use proto::{SsePacket, SsePacketEvent};
 use prost::Message;
+use dal::uuid::Uuid;
 
 pub struct SseResponse(SseRxClient);
 
@@ -49,6 +50,7 @@ pub enum SseError {
 #[derive(Debug)]
 pub struct Broadcaster {
     clients: Vec<SseTxClient>,
+    uuid: Uuid,
 }
 
 #[derive(Debug)]
@@ -70,9 +72,10 @@ struct SseJsonPacket<D: Serialize> {
 }
 
 impl Broadcaster {
-    pub fn new() -> AMBroadcaster {
+    pub fn new(uuid: Uuid) -> AMBroadcaster {
         let this = Self {
-            clients: Vec::new()
+            clients: Vec::new(),
+            uuid
         };
 
         let am_this = Arc::new(Mutex::new(this));
@@ -85,8 +88,9 @@ impl Broadcaster {
             let mut task = interval_at(Instant::now(), Duration::from_secs(HEARTBEAT_INTERVAL));
             loop {
                 task.tick().await;
-                if let Err(e) = this.lock().remove_stale_clients() {
-                    warn!("Failed to remove stale clients: {:?}", e);
+                let mut this = this.lock();
+                if let Err(e) = this.remove_stale_clients() {
+                    warn!("[{}] Failed to remove stale clients: {:?}", this.uuid, e);
                 }
             }
         });
@@ -103,6 +107,9 @@ impl Broadcaster {
             data: SSE_PACKET_DATA_PING.as_bytes().to_vec(),
         }.encode_to_vec());
 
+        let before_len = self.clients.len();
+        trace!("SSE[{}]: Sending event {:?}: {SSE_PACKET_DATA_PING} to {before_len} client(s)", self.uuid, SsePacketEvent::InternalStatus);
+
         self.clients.retain(|x| {
             let bytes = match x.content_type {
                 ContentType::Json => packet_json.clone(),
@@ -113,28 +120,41 @@ impl Broadcaster {
             x.sender.try_send(bytes).is_ok()
         });
 
+        let delta = before_len - self.clients.len();
+        trace!("SSE[{}]: Removed {delta} stale clients", self.uuid);
+
         Ok(())
     }
 
     pub fn new_client(&mut self, content_type: ContentType) -> Result<SseRxClient, SseError> {
         let (tx, rx) = channel(100);
-        let bytes = match content_type {
-            ContentType::Json => Bytes::from(serde_json::to_string(&SseJsonPacket {
-                event: SsePacketEvent::InternalStatus,
-                data: SSE_PACKET_DATA_CONNECTED,
-            })?),
-            ContentType::Protobuf => Bytes::from(SsePacket {
-                event: SsePacketEvent::InternalStatus.into(),
-                data: SSE_PACKET_DATA_CONNECTED.as_bytes().to_vec()
-            }.encode_to_vec()),
-            ContentType::Other => unreachable!(),
-        };
-        tx.try_send(bytes)?;
+
+        let tx_clone = tx.clone();
+        let content_type_clone = content_type.clone();
+        let uuid_clone = self.uuid.clone();
+        actix_rt::spawn(async move {
+            trace!("SSE[{}]: Sending event {:?}: {SSE_PACKET_DATA_CONNECTED}", uuid_clone, SsePacketEvent::InternalStatus);
+            let bytes = match content_type_clone {
+                ContentType::Json => Bytes::from(serde_json::to_string(&SseJsonPacket {
+                    event: SsePacketEvent::InternalStatus,
+                    data: SSE_PACKET_DATA_CONNECTED,
+                }).expect("Serializing JSON")),
+                ContentType::Protobuf => Bytes::from(SsePacket {
+                    event: SsePacketEvent::InternalStatus.into(),
+                    data: SSE_PACKET_DATA_CONNECTED.as_bytes().to_vec()
+                }.encode_to_vec()),
+                ContentType::Other => unreachable!(),
+            };
+
+            tx_clone.try_send(bytes).expect("Sending TX");
+        });
 
         self.clients.push(SseTxClient {
             sender: tx,
             content_type: content_type.clone(),
         });
+
+        trace!("SSE[{}]: Registering new SSE client. {} clients subscribed", self.uuid, self.clients.len());
 
         Ok(SseRxClient {
             receiver: rx,
@@ -145,6 +165,8 @@ impl Broadcaster {
     #[allow(unused)]
     // TODO remove unused
     pub fn send<D: Serialize + Message + Clone>(&self, event: SsePacketEvent, data: D) -> Result<(), SseError> {
+        trace!("SSE: Sending event {event:?} to {} clients", self.clients.len());
+
         let packet_json = Bytes::from(serde_json::to_string(&SseJsonPacket {
             event: event.clone(),
             data: data.clone(),
@@ -162,6 +184,10 @@ impl Broadcaster {
                     ContentType::Protobuf => packet_protobuf.clone(),
                     ContentType::Other => unreachable!()
                 };
+
+                if x.sender.is_closed() {
+                    return Ok(());
+                }
 
                 x.sender.try_send(bytes)
             })?;

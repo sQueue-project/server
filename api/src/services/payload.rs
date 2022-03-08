@@ -52,13 +52,15 @@ impl ContentType {
 
     #[inline]
     pub fn from_request_accepts(req: &HttpRequest) -> Self {
-        Self::from_request_header(req, "Accepts")
+        Self::from_request_header(req, "Accept")
     }
 
     #[inline]
     pub fn from_request_header<S: AsRef<str>>(req: &HttpRequest, name: S) -> Self {
         if let Some(header_value) = req.headers().get(name.as_ref()) {
+            trace!("Header {} is present", name.as_ref());
             if let Ok(hv_str) = header_value.to_str() {
+                trace!("Header {} has value {hv_str}", name.as_ref());
                 return match hv_str {
                     "application/json" => ContentType::Json,
                     "application/protobuf" => ContentType::Protobuf,
@@ -66,6 +68,8 @@ impl ContentType {
                 }
             }
         }
+
+        trace!("Header {} is missing", name.as_ref());
         ContentType::Other
     }
 }

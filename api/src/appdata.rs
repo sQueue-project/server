@@ -13,7 +13,7 @@ pub type WebData = actix_web::web::Data<Arc<AppData>>;
 pub struct AppData {
     pub config: Config,
     pub dal: Mysql,
-    pub sse_track_list: Mutex<HashMap<Uuid, AMBroadcaster>>,
+    pub sse_track_list: Arc<Mutex<HashMap<Uuid, AMBroadcaster>>>,
 }
 
 #[derive(Debug, Error)]
@@ -28,7 +28,7 @@ impl AppData {
         Ok(Self {
             config,
             dal,
-            sse_track_list: Mutex::new(HashMap::new()),
+            sse_track_list: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 

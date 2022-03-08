@@ -3,7 +3,7 @@ use mysql::TxOpts;
 use mysql_common::params;
 use mysql_common::row::Row;
 use rand::Rng;
-use crate::{uuid::Uuid, Dal, DalResult, Datastore, Mysql};
+use crate::{uuid::Uuid, Dal, DalResult, Datastore, Mysql, Track, Queue};
 
 pub struct Member {
     pub uuid: Uuid,
@@ -17,22 +17,13 @@ pub enum RemoveStatus {
     LastMember
 }
 
-pub struct Track {
-    pub uuid: Uuid,
-    pub name: String,
-    pub artist: String,
-    pub duration: i64,
-    pub position: i64,
-    pub thumbnail_url: String,
-    pub youtube_id: String,
-}
-
 pub trait RoomExt<T: Datastore, U>: Dal<T, U> {
     fn get_by_join_code<S: AsRef<str>>(dal: T, code: S) -> DalResult<Option<Self>>;
     fn add_user(&mut self, user: &Uuid) -> DalResult<()>;
     fn remove_user(&mut self, user: &Uuid) -> DalResult<RemoveStatus>;
     fn list_members(&self) -> DalResult<Vec<Member>>;
-    fn list_tracks(&self) -> DalResult<Vec<Track>>;
+    fn list_tracks(&self) -> DalResult<Vec<Track<T>>>;
+    fn get_queue(&self) -> DalResult<Queue<T>>;
 }
 
 pub struct Room<T: Datastore> {
@@ -189,23 +180,24 @@ impl RoomExt<Mysql, RoomBuildable> for Room<Mysql> {
         Ok(members)
     }
 
-    fn list_tracks(&self) -> DalResult<Vec<Track>> {
+    fn list_tracks(&self) -> DalResult<Vec<Track<Mysql>>> {
         let mut conn = self.dal.get_conn()?;
-        let rows: Vec<Row> = conn.exec("SELECT track_uuid,youtube_id,track_name,artist_name,track_duration,queue_position,thumbnail_url WHERE room_uuid = :room_uuid", params! {
-            "youtube_id" => &self.uuid
+        let rows: Vec<Row> = conn.exec("SELECT uuid FROM tracks WHERE room_uuid = :room_uuid", params! {
+            "room_uuid" => &self.uuid
         })?;
 
         let tracks = rows.into_iter()
-            .map(|x| Track {
-                uuid: x.get("track_uuid").unwrap(),
-                name: x.get("track_name").unwrap(),
-                artist: x.get("artist_name").unwrap(),
-                youtube_id: x.get("youtube_id").unwrap(),
-                duration: x.get("track_duration").unwrap(),
-                position: x.get("queue_position").unwrap(),
-                thumbnail_url: x.get("thumbnail_url").unwrap(),
-            })
-            .collect::<Vec<_>>();
+            .map(|x| x.get::<Uuid, &str>("uuid").unwrap())
+            .map(|x| Ok(Track::get(self.dal.clone(), x)?.unwrap()))
+            .collect::<DalResult<Vec<_>>>()?;
+
         Ok(tracks)
+    }
+
+    fn get_queue(&self) -> DalResult<Queue<Mysql>> {
+        Ok(Queue {
+            dal: self.dal.clone(),
+            room_uuid: self.uuid.clone()
+        })
     }
 }

@@ -1,5 +1,5 @@
 use actix_web::web;
-use dal::{Dal, Room, RoomExt};
+use dal::{Dal, Room, RoomExt, TrackExt};
 use dal::uuid::Uuid;
 use proto::TrackListResponse;
 use crate::appdata::WebData;
@@ -13,15 +13,15 @@ pub async fn list(data: WebData, path: web::Path<Uuid>) -> WebResult<Payload<Tra
     };
 
     let tracks = room.list_tracks()?.into_iter()
-        .map(|x| proto::Track {
+        .map(|x| Ok(proto::Track {
+            track_idx: x.get_queue_idx()?,
             track_uuid: x.uuid.to_string(),
             track_name: x.name,
             artist_name: x.artist,
             track_duration: x.duration,
-            track_position: x.position,
             thumbnail_url: x.thumbnail_url,
-        })
-        .collect::<Vec<_>>();
+        }))
+        .collect::<WebResult<Vec<_>>>()?;
 
     Ok(Payload(TrackListResponse {
         tracks

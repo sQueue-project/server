@@ -21,6 +21,10 @@ pub enum Error {
     Uuid(#[from] dal::uuid::Error),
     #[error("Sse: {0}")]
     Sse(#[from] crate::services::sse::SseError),
+    #[error("Forbidden: {0}")]
+    Forbidden(&'static str),
+    #[error("Requwest error: {0}")]
+    Reqwest(#[from] reqwest::Error),
 }
 
 impl ResponseError for Error {
@@ -30,12 +34,15 @@ impl ResponseError for Error {
                 match d {
                     DalError::Mysql(_) => StatusCode::INTERNAL_SERVER_ERROR,
                     DalError::Refinery(_) => unreachable!(),
+                    DalError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
                 }
             },
             Self::Sse(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::Conflict(_) => StatusCode::CONFLICT,
             Self::NotFound(_) => StatusCode::NOT_FOUND,
             Self::BadRequest(_) | Self::Uuid(_) => StatusCode::BAD_REQUEST,
+            Self::Forbidden(_) => StatusCode::FORBIDDEN,
+            Self::Reqwest(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 

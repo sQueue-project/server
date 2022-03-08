@@ -60,7 +60,7 @@ message Track {
   string artistName = 2;
   string trackName = 3;
   int64 trackDuration = 4;
-  int64 trackPosition = 5;
+  int64 trackIdx = 5;
   string thumbnail_url = 6;
 }
 
@@ -76,4 +76,24 @@ message SsePacket {
 enum SsePacketEvent {
   InternalStatus = 0;
   Data = 1;
+}
+
+message TrackAddRequest {
+  string roomUuid = 1;
+  string userUuid = 2;
+  string pretrackUuid = 3;
+}
+
+message TrackAddResponse {
+  Track track = 1;
+}
+
+message TrackFindYouTubeRequest {
+  string roomUuid = 1;
+  string userUuid = 2;
+  string youtubeId = 3;
+}
+
+message TrackFindYouTubeResponse {
+  string pretrackUuid = 1;
 }
