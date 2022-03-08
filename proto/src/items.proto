@@ -68,12 +68,11 @@ message TrackListResponse {
   repeated Track tracks = 1;
 }
 
-message SseStringPacket {
-  string event = 1;
-  string data = 2;
+message SsePacket {
+  SsePacketEvent event = 1;
+  bytes data = 2;
 }
 
-message SsePacket {
-  bytes event = 1;
-  bytes data = 2;
+enum SsePacketEvent {
+  InternalStatus = 0;
 }

@@ -14,7 +14,7 @@ use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tracing::warn;
 use crate::services::payload::ContentType;
-use proto::SseStringPacket;
+use proto::{SsePacket, SsePacketEvent};
 use prost::Message;
 
 pub struct SseResponse(SseRxClient);
@@ -60,13 +60,12 @@ pub struct SseTxClient {
 pub type AMBroadcaster = Arc<Mutex<Broadcaster>>;
 
 const HEARTBEAT_INTERVAL: u64 = 10;
-const SSE_PACKET_EVENT_INTERNAL_STATUS: &str = "InternalStatus";
 const SSE_PACKET_DATA_PING: &str = "Ping";
 const SSE_PACKET_DATA_CONNECTED: &str = "Connected";
 
 #[derive(Serialize)]
-struct SsePacket<E: Serialize, D: Serialize> {
-    event: E,
+struct SseJsonPacket<D: Serialize> {
+    event: SsePacketEvent,
     data: D,
 }
 
@@ -94,22 +93,20 @@ impl Broadcaster {
     }
 
     fn remove_stale_clients(&mut self) -> Result<(), SseError> {
-        let packet_json = serde_json::to_string(&SsePacket {
-            event: SSE_PACKET_EVENT_INTERNAL_STATUS,
+        let packet_json = Bytes::from(serde_json::to_string(&SseJsonPacket {
+            event: SsePacketEvent::InternalStatus,
             data: SSE_PACKET_DATA_PING,
-        })?;
+        })?);
 
-        let packet_protobuf = SseStringPacket {
-            event: SSE_PACKET_EVENT_INTERNAL_STATUS.to_string(),
-            data: SSE_PACKET_DATA_PING.to_string(),
-        };
-        let mut buf = Vec::new();
-        packet_protobuf.encode(&mut buf)?;
+        let packet_protobuf = Bytes::from(SsePacket {
+            event: SsePacketEvent::InternalStatus.into(),
+            data: SSE_PACKET_DATA_PING.as_bytes().to_vec(),
+        }.encode_to_vec());
 
         self.clients.retain(|x| {
             let bytes = match x.content_type {
-                ContentType::Json => Bytes::from(packet_json.clone()),
-                ContentType::Protobuf => Bytes::from(buf.clone()),
+                ContentType::Json => packet_json.clone(),
+                ContentType::Protobuf => packet_protobuf.clone(),
                 _ => unreachable!()
             };
 
@@ -121,11 +118,18 @@ impl Broadcaster {
 
     pub fn new_client(&mut self, content_type: ContentType) -> Result<SseRxClient, SseError> {
         let (tx, rx) = channel(100);
-        let packet = serde_json::to_string(&SsePacket {
-            event: SSE_PACKET_EVENT_INTERNAL_STATUS,
-            data: SSE_PACKET_DATA_CONNECTED,
-        })?;
-        tx.try_send(Bytes::from(packet))?;
+        let bytes = match content_type {
+            ContentType::Json => Bytes::from(serde_json::to_string(&SseJsonPacket {
+                event: SsePacketEvent::InternalStatus,
+                data: SSE_PACKET_DATA_CONNECTED,
+            })?),
+            ContentType::Protobuf => Bytes::from(SsePacket {
+                event: SsePacketEvent::InternalStatus.into(),
+                data: SSE_PACKET_DATA_CONNECTED.as_bytes().to_vec()
+            }.encode_to_vec()),
+            ContentType::Other => unreachable!(),
+        };
+        tx.try_send(bytes)?;
 
         self.clients.push(SseTxClient {
             sender: tx,
@@ -140,14 +144,27 @@ impl Broadcaster {
 
     #[allow(unused)]
     // TODO remove unused
-    pub fn send<E: Serialize + Message, D: Serialize + Message>(&self, event: E, data: D) -> Result<(), SseError> {
-        let json_packet = serde_json::to_string(&SsePacket {
-            event,
-            data
-        }).unwrap();
+    pub fn send<D: Serialize + Message + Clone>(&self, event: SsePacketEvent, data: D) -> Result<(), SseError> {
+        let packet_json = Bytes::from(serde_json::to_string(&SseJsonPacket {
+            event: event.clone(),
+            data: data.clone(),
+        })?);
+
+        let packet_protobuf = Bytes::from(SsePacket {
+            event: event.into(),
+            data: data.encode_to_vec()
+        }.encode_to_vec());
 
         self.clients.iter()
-            .try_for_each(|x| x.sender.try_send(Bytes::from(json_packet.clone())))?;
+            .try_for_each(|x| {
+                let bytes = match x.content_type {
+                    ContentType::Json => packet_json.clone(),
+                    ContentType::Protobuf => packet_protobuf.clone(),
+                    ContentType::Other => unreachable!()
+                };
+
+                x.sender.try_send(bytes)
+            })?;
 
         Ok(())
     }

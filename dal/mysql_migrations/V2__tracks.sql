@@ -7,5 +7,5 @@ CREATE TABLE tracks (
     artist_name TEXT NOT NULL,
     track_duration BIGINT NOT NULL,
     queue_position INT NOT NULL,
-    thumbnail_url TEXT NOT NULL,
+    thumbnail_url TEXT NOT NULL
 );
