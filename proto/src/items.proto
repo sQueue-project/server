@@ -75,4 +75,5 @@ message SsePacket {
 
 enum SsePacketEvent {
   InternalStatus = 0;
+  Data = 1;
 }
