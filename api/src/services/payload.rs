@@ -33,8 +33,8 @@ impl ResponseError for PayloadError {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-enum ContentType {
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum ContentType {
     Json,
     Protobuf,
     Other,
@@ -42,7 +42,7 @@ enum ContentType {
 
 impl ContentType {
     #[inline]
-    fn from_request_content_type(req: &HttpRequest) -> Self {
+    pub fn from_request_content_type(req: &HttpRequest) -> Self {
         match req.content_type() {
             "application/json" => Self::Json,
             "application/protobuf" => Self::Protobuf,
@@ -51,17 +51,21 @@ impl ContentType {
     }
 
     #[inline]
-    fn from_request_accepts(req: &HttpRequest) -> Self {
-        if let Some(accepts) = req.headers().get("Accepts") {
-            if let Ok(accepts) = accepts.to_str() {
-                return match accepts {
+    pub fn from_request_accepts(req: &HttpRequest) -> Self {
+        Self::from_request_header(req, "Accepts")
+    }
+
+    #[inline]
+    pub fn from_request_header<S: AsRef<str>>(req: &HttpRequest, name: S) -> Self {
+        if let Some(header_value) = req.headers().get(name.as_ref()) {
+            if let Ok(hv_str) = header_value.to_str() {
+                return match hv_str {
                     "application/json" => ContentType::Json,
                     "application/protobuf" => ContentType::Protobuf,
                     _ => ContentType::Other
                 }
             }
         }
-
         ContentType::Other
     }
 }

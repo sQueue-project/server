@@ -13,8 +13,11 @@ use serde::Serialize;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tracing::warn;
+use crate::services::payload::ContentType;
+use proto::SseStringPacket;
+use prost::Message;
 
-pub struct SseResponse(SseClient);
+pub struct SseResponse(SseRxClient);
 
 impl Responder for SseResponse {
     type Body = BoxBody;
@@ -27,8 +30,8 @@ impl Responder for SseResponse {
     }
 }
 
-impl From<SseClient> for SseResponse {
-    fn from(client: SseClient) -> Self {
+impl From<SseRxClient> for SseResponse {
+    fn from(client: SseRxClient) -> Self {
         Self(client)
     }
 }
@@ -37,13 +40,21 @@ impl From<SseClient> for SseResponse {
 pub enum SseError {
     #[error("Failed to send: {0}")]
     Send(#[from] TrySendError<Bytes>),
-    #[error("Failed to serialize: {0}")]
-    Serialize(#[from] serde_json::Error),
+    #[error("Failed to serialize to json: {0}")]
+    Json(#[from] serde_json::Error),
+    #[error("Failed to serialize to protobuf: {0}")]
+    Protobuf(#[from] prost::EncodeError),
 }
 
 #[derive(Debug)]
 pub struct Broadcaster {
-    clients: Vec<Sender<Bytes>>
+    clients: Vec<SseTxClient>,
+}
+
+#[derive(Debug)]
+pub struct SseTxClient {
+    sender: Sender<Bytes>,
+    content_type: ContentType
 }
 
 pub type AMBroadcaster = Arc<Mutex<Broadcaster>>;
@@ -83,17 +94,32 @@ impl Broadcaster {
     }
 
     fn remove_stale_clients(&mut self) -> Result<(), SseError> {
-        let packet = serde_json::to_string(&SsePacket {
+        let packet_json = serde_json::to_string(&SsePacket {
             event: SSE_PACKET_EVENT_INTERNAL_STATUS,
             data: SSE_PACKET_DATA_PING,
         })?;
 
-        self.clients.retain(|x| x.try_send(Bytes::from(packet.clone())).is_ok());
+        let packet_protobuf = SseStringPacket {
+            event: SSE_PACKET_EVENT_INTERNAL_STATUS.to_string(),
+            data: SSE_PACKET_DATA_PING.to_string(),
+        };
+        let mut buf = Vec::new();
+        packet_protobuf.encode(&mut buf)?;
+
+        self.clients.retain(|x| {
+            let bytes = match x.content_type {
+                ContentType::Json => Bytes::from(packet_json.clone()),
+                ContentType::Protobuf => Bytes::from(buf.clone()),
+                _ => unreachable!()
+            };
+
+            x.sender.try_send(bytes).is_ok()
+        });
 
         Ok(())
     }
 
-    pub fn new_client(&mut self) -> Result<SseClient, SseError> {
+    pub fn new_client(&mut self, content_type: ContentType) -> Result<SseRxClient, SseError> {
         let (tx, rx) = channel(100);
         let packet = serde_json::to_string(&SsePacket {
             event: SSE_PACKET_EVENT_INTERNAL_STATUS,
@@ -101,31 +127,42 @@ impl Broadcaster {
         })?;
         tx.try_send(Bytes::from(packet))?;
 
-        self.clients.push(tx);
+        self.clients.push(SseTxClient {
+            sender: tx,
+            content_type: content_type.clone(),
+        });
 
-        Ok(SseClient(rx))
+        Ok(SseRxClient {
+            receiver: rx,
+            content_type,
+        })
     }
 
-    pub fn send<E: Serialize, D: Serialize>(&self, event: E, data: D) -> Result<(), SseError> {
-        let packet = serde_json::to_string(&SsePacket {
+    #[allow(unused)]
+    // TODO remove unused
+    pub fn send<E: Serialize + Message, D: Serialize + Message>(&self, event: E, data: D) -> Result<(), SseError> {
+        let json_packet = serde_json::to_string(&SsePacket {
             event,
             data
         }).unwrap();
 
         self.clients.iter()
-            .try_for_each(|x| x.try_send(Bytes::from(packet.clone())))?;
+            .try_for_each(|x| x.sender.try_send(Bytes::from(json_packet.clone())))?;
 
         Ok(())
     }
 }
 
-pub struct SseClient(Receiver<Bytes>);
+pub struct SseRxClient {
+    receiver: Receiver<Bytes>,
+    pub content_type: ContentType,
+}
 
-impl Stream for SseClient {
+impl Stream for SseRxClient {
     type Item = Result<Bytes, actix_web::Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match Pin::new(&mut self.0).poll_recv(cx) {
+        match Pin::new(&mut self.receiver).poll_recv(cx) {
             Poll::Ready(Some(v)) => Poll::Ready(Some(Ok(v))),
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending
