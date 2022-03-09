@@ -111,3 +111,8 @@ message TrackFindSearchTrack {
 message TrackFindSearchResponse {
   repeated TrackFindSearchTrack tracks = 1;
 }
+
+message UserGetResponse {
+  string uuid = 1;
+  string name = 2;
+}

@@ -1,5 +1,3 @@
-extern crate core;
-
 use std::sync::Arc;
 use actix_web::{App, HttpServer, web};
 use tracing::{debug, info, trace};
@@ -41,7 +39,8 @@ async fn main() -> std::io::Result<()> {
             .route("/tracks/list/{uuid}", web::get().to(services::tracks::list::list))
             .route("/tracks/add", web::post().to(services::tracks::add::add))
             .route("/tracks/find/youtube", web::post().to(services::tracks::find::youtube::youtube))
-            .route("/tracks/find/search", web::get().to(services::tracks::find::search::search))))
+            .route("/tracks/find/search", web::get().to(services::tracks::find::search::search))
+            .route("/user/get", web::get().to(services::user::get::get))))
         .bind("[::]:8080")?
         .run();
 
@@ -52,7 +51,7 @@ async fn main() -> std::io::Result<()> {
 fn configure_tracing() {
     let subscriber = tracing_subscriber::FmtSubscriber::builder()
         .compact()
-        .with_max_level(tracing::Level::INFO)
+        .with_max_level(tracing::Level::DEBUG)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber)
