@@ -28,7 +28,7 @@ pub async fn youtube(data: WebData, payload: Payload<TrackFindYouTubeRequest>) -
     let pretrack = Pretrack::create(data.dal.clone(), PretrackBuildable {
         duration: video.content_details.duration(),
         thumbnail_url: video.snippet.get_best_thumbnail(),
-        name: video.snippet.title,
+        name: video.snippet.get_title(),
         artist: video.snippet.channel_title,
         platform: PretrackSourcePlatform::YouTube(payload.youtube_id.clone())
     })?;

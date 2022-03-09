@@ -49,7 +49,7 @@ impl Queue<Mysql> {
             None => 0_i64
         };
 
-        conn.exec_drop("INSERT INTO queue (track_uuid, room_uuid, idx, added_by) VALUES (:track_uuid, :room_uuid, idx, :added_by)", params! {
+        conn.exec_drop("INSERT INTO queue (track_uuid, room_uuid, idx, added_by) VALUES (:track_uuid, :room_uuid, :idx, :added_by)", params! {
             "track_uuid" => &track.uuid,
             "room_uuid" => &self.room_uuid,
             "idx" => idx + 1,

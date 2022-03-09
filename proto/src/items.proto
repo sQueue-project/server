@@ -97,3 +97,17 @@ message TrackFindYouTubeRequest {
 message TrackFindYouTubeResponse {
   string pretrackUuid = 1;
 }
+
+message TrackFindSearchTrack {
+  optional string youtube_id = 1;
+  optional string spotify_id = 2;
+  reserved 3 to 10; // Future platforms
+  string name = 11;
+  string artist = 12;
+  int64 duration = 13;
+  string thumbnail_url = 14;
+}
+
+message TrackFindSearchResponse {
+  repeated TrackFindSearchTrack tracks = 1;
+}

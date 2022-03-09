@@ -25,6 +25,8 @@ pub enum Error {
     Forbidden(&'static str),
     #[error("Requwest error: {0}")]
     Reqwest(#[from] reqwest::Error),
+    #[error("Join error: {0}")]
+    TokioJoin(#[from] tokio::task::JoinError),
 }
 
 impl ResponseError for Error {
@@ -43,6 +45,7 @@ impl ResponseError for Error {
             Self::BadRequest(_) | Self::Uuid(_) => StatusCode::BAD_REQUEST,
             Self::Forbidden(_) => StatusCode::FORBIDDEN,
             Self::Reqwest(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::TokioJoin(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
 
