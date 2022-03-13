@@ -20,7 +20,7 @@ pub enum Error {
     #[error("UUID error: {0}")]
     Uuid(#[from] dal::uuid::Error),
     #[error("Sse: {0}")]
-    Sse(#[from] crate::services::sse::SseError),
+    Sse(#[from] crate::services::sse::broadcaster::SseError),
     #[error("Forbidden: {0}")]
     Forbidden(&'static str),
     #[error("Requwest error: {0}")]

@@ -4,7 +4,7 @@ use dal::uuid::Uuid;
 use proto::{RoomMember, RoomMemberResponse};
 use crate::appdata::WebData;
 use crate::error::{Error, WebResult};
-use crate::services::payload::Payload;
+use actix_multiresponse::Payload;
 use tracing::instrument;
 
 #[instrument]

@@ -2,7 +2,7 @@ use dal::{Dal, Room, RoomBuildable, RoomExt, User, UserBuildable};
 use proto::{RoomCreateResponse, RoomCreateRequest};
 use crate::appdata::WebData;
 use crate::error::{Error, WebResult};
-use crate::services::payload::Payload;
+use actix_multiresponse::Payload;
 use tracing::instrument;
 
 #[instrument]

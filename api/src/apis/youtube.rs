@@ -79,6 +79,7 @@ struct SearchQuery {
     part: String,
     key: String,
     max_results: u32,
+    topic_id: String,
 }
 
 #[derive(Deserialize)]
@@ -130,6 +131,7 @@ impl YouTubeApi {
                 part: "snippet".into(),
                 key: self.token.clone(),
                 max_results: 5,
+                topic_id: "/m/04rlf".into(),
             })
             .send()
             .await?

@@ -13,10 +13,10 @@ use serde::Serialize;
 use thiserror::Error;
 use tokio::sync::mpsc::error::TrySendError;
 use tracing::{trace, warn};
-use crate::services::payload::ContentType;
 use proto::{SsePacket, SsePacketEvent};
 use prost::Message;
 use dal::uuid::Uuid;
+use crate::services::sse::x_accept::ContentType;
 
 pub struct SseResponse(SseRxClient);
 
@@ -113,8 +113,7 @@ impl Broadcaster {
         self.clients.retain(|x| {
             let bytes = match x.content_type {
                 ContentType::Json => packet_json.clone(),
-                ContentType::Protobuf => packet_protobuf.clone(),
-                _ => unreachable!()
+                ContentType::Protobuf => packet_protobuf.clone()
             };
 
             x.sender.try_send(bytes).is_ok()
@@ -142,8 +141,7 @@ impl Broadcaster {
                 ContentType::Protobuf => Bytes::from(SsePacket {
                     event: SsePacketEvent::InternalStatus.into(),
                     data: SSE_PACKET_DATA_CONNECTED.as_bytes().to_vec()
-                }.encode_to_vec()),
-                ContentType::Other => unreachable!(),
+                }.encode_to_vec())
             };
 
             tx_clone.try_send(bytes).expect("Sending TX");
@@ -181,8 +179,7 @@ impl Broadcaster {
             .try_for_each(|x| {
                 let bytes = match x.content_type {
                     ContentType::Json => packet_json.clone(),
-                    ContentType::Protobuf => packet_protobuf.clone(),
-                    ContentType::Other => unreachable!()
+                    ContentType::Protobuf => packet_protobuf.clone()
                 };
 
                 if x.sender.is_closed() {

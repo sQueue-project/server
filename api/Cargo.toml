@@ -6,7 +6,7 @@ authors = ["Tobias de Bruijn <t.debruijn@array21.dev>"]
 
 [dependencies]
 actix-web = "4.0.1"
-actix-protobuf = "0.7.0"
+actix-multiresponse = "0.1.0"
 actix-rt = "2.6.0"
 thiserror = "1.0.30"
 envy = "0.4.2"
@@ -17,6 +17,7 @@ lazy_static = "1.4.0"
 iso8601-duration = "0.1.0"
 time = "0.3.7"
 futures = "0.3.21"
+prost = "0.9.0"
 
 # Tracing
 tracing = "0.1.31"
@@ -36,10 +37,6 @@ path = "../proto"
 
 [dependencies.dal]
 path = "../dal"
-
-[dependencies.prost]
-version = "0.9.0"
-default-features = false
 
 [dependencies.serde]
 version = "1.0.136"

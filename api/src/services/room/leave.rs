@@ -2,7 +2,7 @@ use dal::{Dal, RemoveStatus, Room, RoomExt, uuid::Uuid};
 use proto::{RoomLeaveRequest, RoomLeaveResponse};
 use crate::appdata::WebData;
 use crate::error::{Error, WebResult};
-use crate::services::payload::Payload;
+use actix_multiresponse::Payload;
 use tracing::instrument;
 
 #[instrument]

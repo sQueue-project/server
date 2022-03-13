@@ -4,7 +4,7 @@ use dal::uuid::Uuid;
 use proto::UserGetResponse;
 use crate::appdata::WebData;
 use crate::error::{Error, WebResult};
-use crate::services::payload::Payload;
+use actix_multiresponse::Payload;
 
 pub async fn get(data: WebData, path: web::Path<Uuid>) -> WebResult<Payload<UserGetResponse>> {
     let user = match User::get(data.dal.clone(), path.into_inner())? {

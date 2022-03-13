@@ -5,7 +5,7 @@ use dal::Mysql;
 use crate::config::Config;
 use thiserror::Error;
 use dal::uuid::Uuid;
-use crate::services::sse::AMBroadcaster;
+use crate::services::sse::broadcaster::AMBroadcaster;
 
 pub type WebData = actix_web::web::Data<Arc<AppData>>;
 
